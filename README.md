@@ -1,199 +1,55 @@
-# AvianVisitors
+# AvianVisitors — Wireless Bird Frame
 
-*A live bird collage from your window.*
+A battery-powered, Wi-Fi e-paper frame for the birds heard outside your window, built on **Teddy Warner’s AvianVisitors** and refined by **Jesse Grushack**. This fork adds a BirdWeather-powered wireless frame and illustrations for the northeastern United States.
 
-This fork includes [BirdWeather + Seeed EE02 / NUC setup](integrations/ee02/README.md), Northeast bird illustrations, and portrait rendering improvements.
+**[See the Black Creek Falls bird page →](https://birds.blackcreekfallsny.com/)**
 
-See it running at [bird.onethreenine.net](https://bird.onethreenine.net).
+## Building the listener? Start with Teddy’s repo
 
-<img alt="avianvisitors collage" src="docs/thumb.png" />
+For the Raspberry Pi microphone/listener build, parts list, and installation instructions, go to **[Teddy Warner’s AvianVisitors GitHub repository](https://github.com/Twarner491/AvianVisitors)**. Read the story behind the original project on [Teddy’s website](https://theodore.net/projects/AvianVisitors/).
 
----
+The wireless frame setup here uses an existing **BirdWeather station** as its detection source. Our build uses a BirdWeather PUC, with a separate Linux server rendering the images. The included adapter reads BirdWeather data; it does not directly connect to a standalone BirdNET-Pi database.
 
-## BOM
+## Wireless frame bill of materials
 
-| Qty | Description | Price | Link | Notes |
-|-----|-------------|-------|------| ----- |
-| 1 | Raspberry Pi (4B / 5 / 3A+ / Zero 2W) | ~$25-80 | [Amazon](https://amzn.to/43yLDZJ) | [See note for 512 MB Pis](https://github.com/mcguirepr89/BirdNET-Pi/wiki/RPi0W2-Installation-Guide) |
-| 1 | Micro SD Card (≥32 GB) | ~$10 | [Amazon](https://amzn.to/4eGy7te) | |
-| 1 | USB lavalier microphone | $16.95 | [Amazon](https://amzn.to/4vLSaMK) | |
-| 1 | Pi power supply | ~$10 | - | |
+| Qty | Part | Build notes |
+| --- | --- | --- |
+| 1 | **Good Display GDEP133C02, 13.3-inch Spectra 6 e-paper panel** | Six-color display, used in portrait at 1200 × 1600. This is the panel used in this build. |
+| 1 | **[Seeed Studio XIAO ePaper Display Board EE02](https://wiki.seeedstudio.com/getting_started_with_ee02/)** | Includes the XIAO ESP32-S3 Plus, display driver circuitry, battery charging, and three user buttons. No separate ESP32 is needed. |
+| 1 | **3.7 V rechargeable single-cell Li-ion/LiPo battery** | This build uses 2,000 mAh. Match the EE02’s two-pin JST 2.0 mm connector **and polarity**; connector fit alone does not guarantee that positive and negative match. Verify before connecting. |
+| 1 | **USB-C data cable and USB power supply** | For initial firmware flashing and charging. |
+| 1 | **Frame with mat, backing, and mounting spacers** | Allow space for the panel, controller, battery, and ribbon cable. Support the panel without clamping the active display. See the [proposed mat dimensions and cutting template](integrations/ee02/mat/MAT-SPEC.md). |
+| Optional | **USB-C extension/panel-mount cable** | Makes the charging port accessible after framing. |
 
-Optional: a [Gemini API key](https://aistudio.google.com/apikey) to restyle illustrations, an [eBird API key](https://ebird.org/api/keygen) to filter species by region.
+You also need **Wi-Fi**, an existing **BirdWeather station**, and an **always-on Linux server**. This build runs the renderer in a Debian 12 container on an Intel NUC with Proxmox. Home Assistant is not required; the renderer runs separately. The frame connects over Wi-Fi and can run from its battery, while the server stays powered.
 
-### Kits
+Battery runtime has not been benchmarked. The firmware sleeps between scheduled checks, powers down the display circuitry, and supports waking with the buttons.
 
-I offer the bird mic and the wall frame as separate electronics kits. I put up a store for some of my open-source projects and will soon be able to offer kits cheaper than buying all the components individually, once I start buying in bulk.
+## How it works
 
-- [Bird mic kit](https://theodore.net/store/avian-mic/)
-- [Frame kit](https://theodore.net/store/avian-visitors/)
-
----
-
-## 1. Flash the SD card
-
-Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/). Pick Raspberry Pi OS Lite (64-bit). In the customisation dialog set:
-
-- Username
-- WiFi SSID + password
-- Hostname: `birdnet`
-- Enable SSH with password auth
-
-Plug the USB mic into the Pi. Place the capsule in a window or mount it outside. Boot.
-
----
-
-## 2. Run the installer
-
-Installer assumes passwordless sudo (Raspberry Pi OS Lite default - if you've tightened it, run `sudo raspi-config` -> *System Options* -> restore the default first).
-
-```bash
-ssh <your-username>@birdnet.local
-curl -s https://raw.githubusercontent.com/Twarner491/AvianVisitors/avian-visitors/newinstaller.sh | bash
+```text
+BirdWeather station → BirdWeather data → Linux renderer → Wi-Fi → EE02 e-paper frame
+                                              └────────→ Bird website
 ```
 
-Clones this fork, installs BirdNET-Pi, symlinks the AvianVisitors overlay into the Caddy web root. Takes 20-40 minutes. Reboots when done.
+- **Heard Today:** birds detected since midnight in New York time, with illustration size based on detection counts and bird-name labels.
+- **More frame pages:** stamps, Most Heard, activity, and first detections.
+- **Button navigation:** KEY1 changes modes; KEY2 and KEY3 move between pages. Closely spaced presses are collected before loading the final selection.
+- **Web experience:** the original collage, statistics, Avian Atlas, species details, and available recordings, backed by a local station archive.
+- **Wireless updates:** ESPHome firmware, scheduled checks, deep sleep, and OTA updates after the first USB flash.
 
-Collage: `http://birdnet.local/`. Stock BirdNET-Pi UI: `http://birdnet.local/index.php`. The menu button in the top right opens an admin overlay with Settings, System, Logs, and Tools.
+**[Build and configure the wireless frame →](integrations/ee02/README.md)**
 
-Stock BirdNET-Pi pages still render, but privileged legacy controls are not enabled. Use the Avian Visitors menu for the station controls it exposes, and SSH for remaining maintenance.
+## Northeast bird illustrations
 
-Optional Google Drive backups are set up under **Settings → Nightly Drive backup**. Local cleanup stays unavailable until an archive run has been verified.
+This fork adds **66 additional Northeast bird species, with two illustrations per species — 132 new illustrations**. The additions expand the artwork available for northeastern U.S. stations while preserving the original AvianVisitors visual style.
 
-### Local admin access
+The repository includes the corresponding image dimensions and masks used by the renderer. Bird-name labels, portrait composition, and clipping checks are included in the EE02 integration. Artwork coverage and detections are separate: adding a bird illustration makes it available to display when that species is heard.
 
-Optional password protection for local administrator controls can be enabled in **Settings**. Public bird pages remain available without signing in, while live audio is unavailable when protection is on.
+## Credits
 
-If no password is configured, or the state is missing or invalid, recover it from an SSH session:
+**Conceptualized by [Teddy Warner](https://theodore.net/projects/AvianVisitors/)** — original AvianVisitors project, artwork presentation, and web experience. See [his source repository](https://github.com/Twarner491/AvianVisitors) for the listener build and upstream development.
 
-```bash
-sudo /usr/local/sbin/avian-admin-control password-reset
-```
+**Refined by [Jesse Grushack](https://github.com/jgrushack/AvianVisitors)** — Northeast bird additions and this BirdWeather / NUC / wireless EE02 frame integration.
 
-The command prompts privately for a new password. Return to **Settings** after it finishes.
-
-### Educators mode
-
-Educators mode is an optional profile for the BirdNET-Pi website. It adds a fifth menu page for starting, pausing, organizing, and reviewing listening periods. Enable it after installation over SSH:
-
-```bash
-sudo /usr/local/sbin/avian-educators enable
-```
-
-New stations can also install with the profile enabled:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Twarner491/AvianVisitors/avian-visitors/newinstaller.sh | bash -s -- --educators
-```
-
-Listening periods scope the Collage, Stats, Atlas, and available detection clips without copying or protecting audio files from normal retention. Saved period and folder exports require a direct local connection. See [the Educators guide](docs/educators.md) for the full workflow and privacy details.
-
-### Updating an existing station
-
-For the first v1 update, or if an interrupted older update left the admin helper missing and Tools locked, keep the existing checkout and run this verified setup over SSH:
-
-```bash
-upgrade=$(mktemp "$HOME/avian-v1-upgrade.XXXXXX")
-curl -fsSL https://raw.githubusercontent.com/Twarner491/AvianVisitors/avian-visitors/scripts/bootstrap_v1.sh -o "$upgrade"
-sudo bash "$upgrade"
-rm -f "$upgrade"
-```
-
-After v1, use **Tools → Pull latest** or run:
-
-```bash
-cd ~/BirdNET-Pi
-./scripts/update_birdnet.sh
-```
-
-The updater preserves custom bird artwork, generated mask data, and existing credentials. It stops if other tracked files have local edits. It verifies and stages one official release before changing the checkout. If applying that release is interrupted, keep the new checkout and resume the same prepared installation without fetching another release:
-
-```bash
-sudo /usr/local/sbin/avian-service-refresh
-```
-
-If the installed refresher itself is missing or unsafe, use the verified setup command above. An already-running older updater cannot gain the new preparation checks until it has finished or been recovered this way. Only use `sudo /usr/local/sbin/avian-admin-control password-reset` for missing credentials after the helper is installed successfully.
-
----
-
-## 3. Illustration bundles
-
-By default, new stations use the included Japanese Woodblock bundle, which covers Western North America. If you live elsewhere or want a different style, open **Settings → Bird bundle** or browse available bundles at [avianvisitors.com/bundles](https://avianvisitors.com/bundles). On the public site, **Use on my local station** is the main action. Its adjacent command button opens and copies one line. After SSHing into a station or BirdFrame, run:
-
-```bash
-sudo avian-bundle use '<BUNDLE_ID>'
-```
-
-With a saved location, the device downloads the bundle's birds expected there throughout the year. Coordinates are not sent to the bundle catalog. Without a location, it downloads the full set; add `--all-species` to request the full set explicitly. In Settings, **Refresh local birds** reapplies a changed location to the current downloaded bundle.
-
-To share your own set, open **Tools → Your data → Export bundle**. Review the local illustrations, download the upload-ready ZIP, then sign in at [avianvisitors.com/bundles](https://avianvisitors.com/bundles) and upload it. The station never uploads a bundle automatically.
-
-### Restyle or generate your own
-
-The repo includes 666 illustrations for 333 species, each perched and in flight. To restyle them or generate a set for your own region:
-
-```bash
-pip install -r ~/BirdNET-Pi/avian/scripts/requirements.txt
-export GEMINI_API_KEY='your-key'  # image generation requires billing enabled
-
-# generate on a cream ground, cut the ground off, rebuild the collage masks
-python3 ~/BirdNET-Pi/avian/scripts/pregen.py --labels ~/BirdNET-Pi/model/labels.txt --force
-python3 ~/BirdNET-Pi/avian/scripts/cutout.py
-python3 ~/BirdNET-Pi/avian/scripts/build_masks.py
-```
-
-On an installed station, run all three commands in order. The first changed
-PNG temporarily marks the included artwork unavailable; the final
-`build_masks.py` call atomically republishes matching geometry and restores it.
-Do not copy individual PNGs directly into the live illustration directory.
-
-On a Pi with 4 GB of RAM or less, add `--model u2net` to the `cutout.py` command; the default model may be [OOM-killed](https://github.com/Twarner491/AvianVisitors/issues/17).
-
-Filter to your region with `--ebird-region US-CA` (needs `EBIRD_API_KEY`). The full pipeline, prompt, reference images, and per-species tuning live in [`avian/scripts/README.md`](avian/scripts/README.md). Style lives in [`prompt.template.md`](avian/scripts/prompt.template.md).
-
----
-
-## 4. (Optional) Forward off your LAN
-
-See [`avian/forwarding/`](avian/forwarding/) for three independent recipes:
-
-- **Cloudflare Tunnel** for a public HTTPS URL.
-- **Home Assistant REST sensor** that exposes the latest detection.
-- **MQTT bridge** that publishes every new detection.
-
----
-
-## Repo layout
-
-```
-avian/                  # everything we add to BirdNET-Pi
-├── frontend/           # static HTML/JS/CSS for the collage
-├── assets/             # 666 bundled illustrations + photo-cutout fallbacks
-├── api/                # PHP shims served by BirdNET-Pi's PHP-FPM
-├── scripts/            # generate -> cutout -> masks pipeline + prompt
-└── forwarding/         # optional HA / MQTT / Cloudflare configs
-frame/                  # optional e-ink wall display
-```
-
-Avian Visitors also maintains the root-level installer, security, test, and
-release-documentation files used to ship those two trees. Other inherited
-application files remain upstream BirdNET-Pi unless a release note says
-otherwise.
-
----
-
-## Wall frame
-
-An optional e-ink frame puts the bird collage on a panel by your window. Build it from [`frame/`](frame/README.md). It can run off your own BirdNET mic, from BirdWeather around a ZIP code, or from one public BirdWeather station with `frame/install.sh --station-id <ID>`.
-
----
-
-## License
-
-CC-BY-NC-SA-4.0, inherited from [BirdNET-Pi](https://github.com/Nachtzuster/BirdNET-Pi/blob/main/LICENSE). Non-commercial use only. See the [BirdNET-Pi README](https://github.com/Nachtzuster/BirdNET-Pi/blob/main/README.md) for full Cornell attribution.
-
----
-
-- [Fork this repository](https://github.com/Twarner491/AvianVisitors/fork)
-- [Watch this repo](https://github.com/Twarner491/AvianVisitors/subscription)
-- [Create issue](https://github.com/Twarner491/AvianVisitors/issues/new)
+The frame uses Philipp Waller’s [ESPHome Spectra 6 display driver](https://github.com/philippwaller/esphome-epaper-spectra6-133), fetched separately during setup. Existing project licenses and attribution remain in place; see [LICENSE](LICENSE).
