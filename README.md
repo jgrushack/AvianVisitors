@@ -15,13 +15,13 @@ The wireless frame setup here uses an existing **BirdWeather station** as its de
 | Qty | Description | Price | Link | Notes |
 | --- | --- | --- | --- | --- |
 | 1 | Good Display GDEP133C02, 13.3-inch Spectra 6 screen | $209 | [Good Display](https://www.buy-lcd.com/products/gdep133c02) | Screen only; 1200 × 1600 portrait |
-| 1 | Seeed Studio XIAO ePaper Display Board EE02 | Check vendor | [Seeed Studio](https://www.seeedstudio.com/XIAO-ePaper-DIY-Kit-EE02-for-13-3-Spectratm-6-E-Ink.html) | Includes ESP32-S3 Plus and charging circuitry |
-| 1 | 3.7 V, 2,000 mAh Li-ion/LiPo battery | Varies | — | Two-pin JST 2.0 mm; verify polarity |
-| 1 | USB-C data cable and USB power supply | Varies | — | Initial flashing and charging |
-| 1 | Frame, mat, backing, and spacers | Varies | [Mat template](integrations/ee02/mat/MAT-SPEC.md) | Leave clearance for panel and electronics |
-| Optional | USB-C extension/panel-mount cable | Varies | — | Accessible charging port |
+| 1 | Seeed Studio XIAO ePaper Display Board EE02 | ~$15–25 | [Seeed Studio](https://www.seeedstudio.com/XIAO-ePaper-Display-Board-ESP32-S3-EE02-p-6639.html) | Includes ESP32-S3 Plus and charging circuitry |
+| 1 | 3.7 V, 2,000 mAh Li-ion/LiPo battery | ~$10–20 | [Amazon](https://www.amazon.com/dp/B08214DJLJ) | EEMB example; connector polarity may need correcting |
+| 1 | USB-C data cable and USB power supply | ~$10–25 | [Amazon cable](https://www.amazon.com/dp/B07PPY9N62) | USB-A to USB-C data cable; add a 5 V USB supply |
+| 1 | Frame, mat, backing, and spacers | ~$20–60 | [Mat template](integrations/ee02/mat/MAT-SPEC.md) | Leave clearance for panel and electronics |
+| Optional | USB-C extension/panel-mount cable | ~$8–15 | [Amazon](https://www.amazon.com/dp/B099PMTDG5) | Accessible charging port |
 
-Prices are in USD. The screen cost $209 for this build, as reported by Jesse; shipping and tax treatment is unspecified. Other prices depend on supplier and selected parts. The screen and EE02 controller are separate purchases.
+Prices are in USD. The screen cost $209 for this build. Ranges marked ~ are planning estimates, not live checkout quotes; allow extra for shipping and tax. Amazon links are example products; confirm the selected variant and fit. The screen and EE02 controller are separate purchases.
 
 Verify battery polarity against the EE02 markings before connecting; connector fit alone does not guarantee correct polarity. Support the panel without clamping the active display.
 
