@@ -12,16 +12,18 @@ The wireless frame setup here uses an existing **BirdWeather station** as its de
 
 ## Wireless frame bill of materials
 
-| Qty | Part | Build notes |
-| --- | --- | --- |
-| 1 | **[Good Display GDEP133C02, 13.3-inch Spectra 6 e-paper panel](https://www.buy-lcd.com/products/gdep133c02)** | **US$159.38 for the screen only** (listed October 7, 2026; excludes shipping and tax). Six-color display, used in portrait at 1200 × 1600. This is the panel used in this build. |
-| 1 | **[Seeed Studio XIAO ePaper Display Board EE02](https://wiki.seeedstudio.com/getting_started_with_ee02/)** | Includes the XIAO ESP32-S3 Plus, display driver circuitry, battery charging, and three user buttons. No separate ESP32 is needed. |
-| 1 | **3.7 V rechargeable single-cell Li-ion/LiPo battery** | This build uses 2,000 mAh. Match the EE02’s two-pin JST 2.0 mm connector **and polarity**; connector fit alone does not guarantee that positive and negative match. Verify before connecting. |
-| 1 | **USB-C data cable and USB power supply** | For initial firmware flashing and charging. |
-| 1 | **Frame with mat, backing, and mounting spacers** | Allow space for the panel, controller, battery, and ribbon cable. Support the panel without clamping the active display. See the [proposed mat dimensions and cutting template](integrations/ee02/mat/MAT-SPEC.md). |
-| Optional | **USB-C extension/panel-mount cable** | Makes the charging port accessible after framing. |
+| Qty | Description | Price | Link | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | Good Display GDEP133C02, 13.3-inch Spectra 6 screen | $159.38 | [Good Display](https://www.buy-lcd.com/products/gdep133c02) | Screen only; 1200 × 1600 portrait |
+| 1 | Seeed Studio XIAO ePaper Display Board EE02 | Check vendor | [Seeed Studio](https://www.seeedstudio.com/XIAO-ePaper-DIY-Kit-EE02-for-13-3-Spectratm-6-E-Ink.html) | Includes ESP32-S3 Plus and charging circuitry |
+| 1 | 3.7 V, 2,000 mAh Li-ion/LiPo battery | Varies | — | Two-pin JST 2.0 mm; verify polarity |
+| 1 | USB-C data cable and USB power supply | Varies | — | Initial flashing and charging |
+| 1 | Frame, mat, backing, and spacers | Varies | [Mat template](integrations/ee02/mat/MAT-SPEC.md) | Leave clearance for panel and electronics |
+| Optional | USB-C extension/panel-mount cable | Varies | — | Accessible charging port |
 
-The screen price above is the vendor’s listed price, not a complete frame price. The EE02 controller, battery, charging accessories, and frame are separate purchases; prices and availability can change.
+Prices are in USD, before shipping and tax. Screen price checked October 7, 2026; other prices depend on supplier and selected parts. The screen and EE02 controller are separate purchases.
+
+Verify battery polarity against the EE02 markings before connecting; connector fit alone does not guarantee correct polarity. Support the panel without clamping the active display.
 
 You also need **Wi-Fi**, an existing **BirdWeather station**, and an **always-on Linux server**. This build runs the renderer in a Debian 12 container on an Intel NUC with Proxmox. Home Assistant is not required; the renderer runs separately. The frame connects over Wi-Fi and can run from its battery, while the server stays powered.
 
