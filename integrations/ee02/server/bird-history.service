@@ -1,0 +1,17 @@
+[Unit]
+Description=Synchronize BirdWeather station history
+After=network-online.target
+Wants=network-online.target
+OnSuccess=bird-render.service
+
+[Service]
+Type=oneshot
+User=birdframe
+Group=birdframe
+ExecStart=/opt/bird-renderer/venv/bin/python /opt/bird-renderer/history.py
+WorkingDirectory=/opt/bird-renderer
+TimeoutStartSec=1800
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bird-renderer

@@ -165,7 +165,7 @@ def top_species(lat, lon, miles, days=7, limit=60, timeout=20):
     return out
 
 
-def top_species_for_station(value, days=7, limit=60, timeout=20):
+def top_species_for_station(value, days=7, limit=60, timeout=20, period=None):
     """BirdWeather's species for exactly one public station.
 
     This path is intentionally strict and has no geographic or eBird fallback.
@@ -186,7 +186,7 @@ query FrameStation($stationId: ID!, $stationIds: [ID!]!, $period: InputDuration!
     payload = _graphql(query, timeout, variables={
         "stationId": sid,
         "stationIds": [sid],
-        "period": {"count": days, "unit": "day"},
+        "period": period if period is not None else {"count": days, "unit": "day"},
         "limit": limit,
     }, strict=True)
     data = payload["data"]
@@ -392,11 +392,11 @@ def species_for_zip(zip_code, country="us", target=10, days=7, radii=(15, 30, 50
 
 
 def species_for_station(value, target=10, days=7, apt_js=APT_JS, timeout=20,
-                        drawable=None):
+                        drawable=None, period=None):
     """Top drawable birds heard by exactly one public BirdWeather station."""
     target = _bounded_int(target, "target", 1, 60)
     drawable = drawable_slugs(apt_js) if drawable is None else frozenset(drawable)
-    found = [s for s in top_species_for_station(value, days, max(60, target), timeout)
+    found = [s for s in top_species_for_station(value, days, max(60, target), timeout, period=period)
              if slugify(s["sci"]) in drawable]
     return found[:target]
 

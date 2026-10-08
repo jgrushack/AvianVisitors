@@ -2,6 +2,8 @@
 
 *A live bird collage from your window.*
 
+This fork includes [BirdWeather + Seeed EE02 / NUC setup](integrations/ee02/README.md), Northeast bird illustrations, and portrait rendering improvements.
+
 See it running at [bird.onethreenine.net](https://bird.onethreenine.net).
 
 <img alt="avianvisitors collage" src="docs/thumb.png" />

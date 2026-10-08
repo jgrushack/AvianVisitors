@@ -1,0 +1,367 @@
+esphome:
+  name: bird-frame
+  friendly_name: Bird Frame
+  includes:
+    - panel_power.h
+    - button_queue.h
+  on_boot:
+    - priority: 900
+      then:
+        - lambda: |-
+            release_panel_power_hold();
+            auto cause = esp_sleep_get_wakeup_cause();
+            id(button_wake) = cause == ESP_SLEEP_WAKEUP_EXT1;
+            if (id(button_wake)) {
+              uint64_t pins = esp_sleep_get_ext1_wakeup_status();
+              id(command) = (pins & (1ULL << 2)) ? "mode" : (pins & (1ULL << 3)) ? "previous" : "next";
+            }
+            id(command_event) = str_sprintf("%08x%08x", esp_random(), esp_random());
+    - priority: -100
+      then:
+        - delay: 1s
+        - lambda: id(stay_awake) = !id(button_wake) && id(setup_button).state;
+        - wait_until:
+            condition:
+              lambda: return !id(setup_button).state && !id(previous_button).state && !id(next_button).state;
+        - lambda: id(controls_ready) = true;
+        - script.execute: connection_deadline
+
+packages:
+  board: !include driver/packages/boards/seeed_studio/xiao_ee02.yaml
+
+external_components:
+  - source:
+      type: local
+      path: driver/components
+    components: [epaper_spectra6_133]
+
+preferences:
+  flash_write_interval: 0s
+
+globals:
+  - id: sent_event
+    type: std::string
+    initial_value: '""'
+  - id: command_attempts
+    type: int
+    initial_value: '0'
+  - id: cycle_busy
+    type: bool
+    initial_value: 'false'
+  - id: command
+    type: std::string
+    initial_value: '""'
+  - id: command_event
+    type: std::string
+    initial_value: '""'
+  - id: button_wake
+    type: bool
+    initial_value: 'false'
+  - id: controls_ready
+    type: bool
+    initial_value: 'false'
+  - id: displayed_version
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 64
+    initial_value: '""'
+  - id: pending_version
+    type: std::string
+    initial_value: '""'
+  - id: provisioned
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: stay_awake
+    type: bool
+    initial_value: 'false'
+  - id: cycle_started
+    type: bool
+    initial_value: 'false'
+
+wifi:
+  reboot_timeout: 0s
+  power_save_mode: light
+  ap:
+    ssid: Bird Frame Setup
+    password: !secret setup_password
+    ap_timeout: 15s
+  on_connect:
+    then:
+      - if:
+          condition:
+            lambda: return !id(cycle_started);
+          then:
+            - lambda: |-
+                id(cycle_started) = true;
+                id(provisioned) = true;
+            - script.execute: send_command
+
+captive_portal:
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+http_request:
+  timeout: 20s
+  watchdog_timeout: 30s
+
+deep_sleep:
+  id: sleep_control
+  sleep_duration: 15min
+  esp32_ext1_wakeup:
+    pins:
+      - number: 2
+        allow_other_uses: true
+      - number: 3
+        allow_other_uses: true
+      - number: 5
+        allow_other_uses: true
+    mode: ANY_LOW
+
+binary_sensor:
+  - platform: gpio
+    id: setup_button
+    pin:
+      number: ${onboard_button_1_pin}
+      inverted: true
+      allow_other_uses: true
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on: 40ms
+    on_press:
+      then:
+        - script.execute:
+            id: button_action
+            action: mode
+  - platform: gpio
+    id: previous_button
+    pin:
+      number: ${onboard_button_2_pin}
+      inverted: true
+      allow_other_uses: true
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on: 40ms
+    on_press:
+      then:
+        - script.execute:
+            id: button_action
+            action: previous
+  - platform: gpio
+    id: next_button
+    pin:
+      number: ${onboard_button_3_pin}
+      inverted: true
+      allow_other_uses: true
+      mode: INPUT_PULLUP
+    filters:
+      - delayed_on: 40ms
+    on_press:
+      then:
+        - script.execute:
+            id: button_action
+            action: next
+
+interval:
+  - interval: 15s
+    then:
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - http_request.post:
+                url: http://192.168.1.30:8080/diagnostics
+                request_headers:
+                  Content-Type: application/json
+                body: !lambda |-
+                  return str_sprintf("{\"firmware\":\"button-batch-4\",\"uptime\":%u,\"wake\":%d,\"ready\":%d,\"busy\":%d,\"maintenance\":%d,\"keys\":[%d,%d,%d],\"processing\":%d,\"sleeping\":%d,\"queued\":\"%s\"}", millis(), (int)esp_sleep_get_wakeup_cause(), id(controls_ready), id(cycle_busy), id(stay_awake), id(setup_button).state, id(previous_button).state, id(next_button).state, id(epd).is_processing(), id(epd).is_sleeping(), id(command).c_str());
+
+script:
+  - id: button_action
+    parameters:
+      action: string
+    then:
+      - if:
+          condition:
+            lambda: return id(controls_ready);
+          then:
+            - lambda: |-
+                if (!pending_buttons.push(action))
+                  ESP_LOGW("bird_frame", "Button queue full (64); ignoring extra press");
+            - if:
+                condition:
+                  lambda: return !id(cycle_busy);
+                then:
+                  - script.stop: sleep_now
+                  - script.execute: send_command
+  - id: send_command
+    mode: single
+    then:
+      - lambda: |-
+          id(cycle_busy) = true;
+          if (id(command).empty()) {
+            id(command) = pending_buttons.take();
+            id(command_event) = str_sprintf("%08x%08x", esp_random(), esp_random());
+            id(command_attempts) = 0;
+          }
+          id(command_attempts)++;
+      # Let the caller finish before synchronous HTTP callbacks can re-enter it.
+      - delay: 1ms
+      - http_request.post:
+          url: http://192.168.1.30:8080/device
+          request_headers:
+            Content-Type: application/json
+          body: !lambda |-
+            id(sent_event) = id(command_event);
+            return "{\"action\":\"" + id(command) + "\",\"event\":\"" + id(command_event) + "\",\"wake_reason\":\"" + (id(button_wake) ? "button" : "timer_or_reset") + "\",\"displayed_version\":\"" + id(displayed_version) + "\"}";
+          on_response:
+            then:
+              - if:
+                  condition:
+                    lambda: return response->status_code == 200;
+                  then:
+                    - lambda: if (id(sent_event) == id(command_event)) id(command).clear();
+              - script.execute: settle_commands
+          on_error:
+            then:
+              - script.execute: settle_commands
+
+  # Apply every navigation command before downloading/refreshing the final image.
+  # The delay also lets the HTTP callback and send_command script finish.
+  - id: settle_commands
+    mode: restart
+    then:
+      - delay: 400ms
+      - lambda: |-
+          if (id(command_attempts) >= 3) id(command).clear();
+      - if:
+          condition:
+            lambda: return !id(command).empty() || !pending_buttons.empty();
+          then:
+            - script.execute: send_command
+          else:
+            - script.execute: check_image
+
+  - id: connection_deadline
+    then:
+      - delay: 90s
+      - if:
+          condition:
+            lambda: return !id(cycle_started) && id(provisioned);
+          then:
+            - script.execute: sleep_now
+  - id: sleep_now
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: return !id(epd).is_sleeping() && !id(epd).is_processing();
+          then:
+            - lambda: id(epd).sleep();
+            - wait_until:
+                condition:
+                  lambda: return !id(epd).is_processing();
+                timeout: 20s
+      - delay: 2s
+      - lambda: |-
+          id(cycle_busy) = false;
+          if (id(command_attempts) >= 3) id(command).clear();
+      - if:
+          condition:
+            lambda: return !id(command).empty() || !pending_buttons.empty();
+          then:
+            - script.execute: send_command
+          else:
+            - if:
+                condition:
+                  lambda: return !id(stay_awake);
+                then:
+                  - wait_until:
+                      condition:
+                        lambda: return !id(setup_button).state && !id(previous_button).state && !id(next_button).state;
+                  - lambda: hold_panel_power_off();
+                  - deep_sleep.enter: sleep_control
+                else:
+                  - logger.log: "Maintenance mode: staying awake for updates"
+  - id: check_image
+    mode: single
+    then:
+      - http_request.get:
+          url: http://192.168.1.30:8080/version
+          capture_response: true
+          max_response_buffer_size: 128
+          on_response:
+            then:
+              - if:
+                  condition:
+                    lambda: |-
+                      if (response->status_code != 200 || body.size() != 64) return false;
+                      for (char c : body) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+                      id(pending_version) = body;
+                      return body != id(displayed_version);
+                  then:
+                    - online_image.set_url:
+                        id: bird_image
+                        url: !lambda return "http://192.168.1.30:8080/frames/" + id(pending_version) + ".png";
+                  else:
+                    - logger.log: "No new valid image version; retaining display"
+                    - script.execute: sleep_now
+          on_error:
+            then:
+              - script.execute: sleep_now
+  - id: finish_refresh
+    then:
+      - wait_until:
+          condition:
+            lambda: return !id(epd).is_processing();
+          timeout: 120s
+      - if:
+          condition:
+            lambda: return !id(epd).is_processing() && id(epd).is_sleeping();
+          then:
+            - lambda: |-
+                id(displayed_version) = id(pending_version);
+                ESP_LOGI("bird_frame", "Image refresh complete; version saved");
+          else:
+            - logger.log: "Refresh did not complete; version will be retried"
+      - script.execute: sleep_now
+
+image:
+  - platform: online_image
+    id: bird_image
+    url: http://192.168.1.30:8080/frame.png
+    format: PNG
+    type: RGB565
+    update_interval: never
+    on_download_finished:
+      then:
+        - if:
+            condition:
+              lambda: return id(bird_image).get_width() == 1200 && id(bird_image).get_height() == 1600;
+            then:
+              - component.update: epd
+              - script.execute: finish_refresh
+            else:
+              - logger.log: "Wrong image dimensions; retaining display"
+              - script.execute: sleep_now
+    on_error:
+      then:
+        - script.execute: sleep_now
+
+display:
+  - platform: epaper_spectra6_133
+    id: epd
+    rotation: 0
+    update_interval: never
+    power_off_after_sleep: true
+    cs0_pin: ${epd_cs0_pin}
+    cs1_pin: ${epd_cs1_pin}
+    clk_pin: ${epd_clk_pin}
+    data0_pin: ${epd_data0_pin}
+    data1_pin: ${epd_data1_pin}
+    busy_pin: ${epd_busy_pin}
+    reset_pin: ${epd_reset_pin}
+    power_pin: ${epd_power_pin}
+    lambda: it.image(0, 0, id(bird_image));

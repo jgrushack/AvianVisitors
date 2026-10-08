@@ -1,0 +1,18 @@
+[Unit]
+Description=Render BirdWeather collage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=birdframe
+Group=birdframe
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/bird-renderer/browsers
+ExecStart=/opt/bird-renderer/venv/bin/python /opt/bird-renderer/service.py render
+WorkingDirectory=/opt/bird-renderer
+TimeoutStartSec=300
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bird-renderer
+PrivateTmp=true

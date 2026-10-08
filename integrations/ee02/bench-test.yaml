@@ -1,0 +1,46 @@
+esphome:
+  name: bird-display-test
+  friendly_name: Bird Display Test
+  on_boot:
+    priority: -100
+    then:
+      - delay: 2s
+      - component.update: epd
+
+packages:
+  board: !include driver/packages/boards/seeed_studio/xiao_ee02.yaml
+
+external_components:
+  - source:
+      type: local
+      path: driver/components
+    components: [epaper_spectra6_133]
+
+display:
+  - platform: epaper_spectra6_133
+    id: epd
+    rotation: 90
+    update_interval: never
+    power_off_after_sleep: true
+    cs0_pin: ${epd_cs0_pin}
+    cs1_pin: ${epd_cs1_pin}
+    clk_pin: ${epd_clk_pin}
+    data0_pin: ${epd_data0_pin}
+    data1_pin: ${epd_data1_pin}
+    busy_pin: ${epd_busy_pin}
+    reset_pin: ${epd_reset_pin}
+    power_pin: ${epd_power_pin}
+    lambda: |-
+      const Color colors[] = {
+        Color(0, 0, 0), Color(255, 255, 255), Color(255, 255, 0),
+        Color(255, 0, 0), Color(0, 0, 255), Color(0, 255, 0)
+      };
+      const int w = it.get_width();
+      const int h = it.get_height();
+      for (int i = 0; i < 6; i++) {
+        int x0 = i * w / 6;
+        int x1 = (i + 1) * w / 6;
+        it.filled_rectangle(x0, 0, x1 - x0, h, colors[i]);
+        it.rectangle(x0 + 15, 15, x1 - x0 - 30, h - 30,
+                     i == 0 ? Color(255, 255, 255) : Color(0, 0, 0));
+      }

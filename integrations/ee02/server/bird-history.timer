@@ -1,0 +1,8 @@
+[Unit]
+Description=Keep BirdWeather history current
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Persistent=true
+[Install]
+WantedBy=timers.target

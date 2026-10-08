@@ -391,6 +391,29 @@ def _make_js_handler(xbias, ybias, count_exp, pad, label_min_px, auth, misses):
         try:
             kw = {"headers": {**route.request.headers, "authorization": auth}} if auth else {}
             js = route.fetch(**kw).text()
+            # Normalize visible silhouette area rather than transparent rectangles.
+            anchor = "t.fullW = Math.sqrt(t.area * t.ar);"
+            if anchor not in js:
+                raise RuntimeError("silhouette sizing anchor missing")
+            js = js.replace(anchor, "t.fullW = Math.sqrt(t.area * t.ar / Math.max(0.01, t.mask.cells.length / (t.mask.w * t.mask.h)));")
+            # SVG textPath drops glyphs beyond its path. Fit browser-shaped text.
+            anchor = "r.el = btn;\n      collage.appendChild(btn);"
+            if anchor not in js:
+                raise RuntimeError("label fitting anchor missing")
+            js = js.replace(anchor, anchor + """
+      btn.querySelectorAll('.gtile-label').forEach(function(svg) {
+        svg.style.overflow = 'visible';
+        svg.querySelectorAll('textPath').forEach(function(tp) {
+          var path = svg.querySelector(tp.getAttribute('href'));
+          var room = path.getTotalLength() * 0.94;
+          var natural = tp.getComputedTextLength();
+          if (natural > room) {
+            tp.setAttribute('textLength', room);
+            tp.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+          }
+        });
+      });
+""")
             for pat, repl in ((r"var xBias = narrow \? 1 : T\.ellipseAspectBias;", f"var xBias = {xbias};"),
                               (r"var yBias = narrow \? 1\.7 : 1;", f"var yBias = {ybias};"),
                               (r"countExp:\s*[\d.]+,", f"countExp: {count_exp},"),
@@ -401,6 +424,7 @@ def _make_js_handler(xbias, ybias, count_exp, pad, label_min_px, auth, misses):
                     misses.append(pat)
             route.fulfill(status=200, content_type="application/javascript; charset=utf-8", body=js)
         except Exception as e:
+            misses.append(str(e))
             print(f"apt.js rewrite skipped: {e}", file=sys.stderr)
             _safe_continue(route)
     return handler
@@ -556,6 +580,28 @@ def shoot(url, out, *, title=None, subtitle=None, vw=600, vh=800, dsf=2,
                             or not unchanged):
                         continue
                     layout = page.evaluate(CAPTURE_LAYOUT)
+                    # Keep the last good frame if any glyph is clipped.
+                    label_errors = page.evaluate(r"""() => {
+                      const errors = [];
+                      document.querySelectorAll('.gtile-label textPath').forEach(tp => {
+                        const text = tp.textContent;
+                        const matrix = tp.getScreenCTM();
+                        for (let i = 0; i < text.length; i++) {
+                          if (/\s/.test(text[i])) continue;
+                          const r = tp.getExtentOfChar(i);
+                          if (!(r.width > 0 && r.height > 0)) { errors.push(text); break; }
+                          const corners = [[r.x,r.y],[r.x+r.width,r.y],
+                            [r.x,r.y+r.height],[r.x+r.width,r.y+r.height]];
+                          if (corners.some(([x,y]) => {
+                            const p = new DOMPoint(x,y).matrixTransform(matrix);
+                            return p.x < 1 || p.y < 1 || p.x > innerWidth-1 || p.y > innerHeight-1;
+                          })) { errors.push(text); break; }
+                        }
+                      });
+                      return errors;
+                    }""")
+                    if label_errors:
+                        raise RuntimeError("clipped bird labels: " + ", ".join(label_errors))
                     expected_responses = {item["src"]: responses.get(item["src"]) for item in layout["images"]}
                     images = _composition_images(layout, responses, dsf)
                     if color is None:

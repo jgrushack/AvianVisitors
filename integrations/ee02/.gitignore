@@ -1,0 +1,8 @@
+driver/
+.venv/
+.esphome/
+secrets.yaml
+*.log
+backups/
+__pycache__/
+*.pyc

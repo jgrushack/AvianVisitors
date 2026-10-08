@@ -1,0 +1,10 @@
+[Unit]
+Description=Check BirdWeather every 15 minutes
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=15min
+Unit=bird-render.service
+
+[Install]
+WantedBy=timers.target
